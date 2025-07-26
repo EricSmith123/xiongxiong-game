@@ -708,7 +708,7 @@
                 const showLoading = ref(true);
                 const loadingProgress = ref(0);
 
-                // 1. Web Audio API 音频管理器
+                // 1. Web Audio API 音频管理器 (移动端优化版)
                 class AudioManager {
                     constructor() {
                         this.audioContext = null;
@@ -717,31 +717,48 @@
                         this.bgmSource = null;
                         this.bgmBuffer = null;
                         this.sfxBuffers = new Map();
-                        this.bgmVolume = 0.5;
-                        this.sfxVolume = 0.7;
-                        this.bgmPlaying = false;
+                        this.bgmUrl = null; // 存储当前BGM url
+                        this.isBgmPlaying = false;
                         this.initialized = false;
+                        this.initializing = null;
                     }
 
                     async init() {
-                        if (this.initialized || !window.AudioContext) return;
-                        try {
-                            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                            
-                            // 创建增益节点
-                            this.bgmGainNode = this.audioContext.createGain();
-                            this.sfxGainNode = this.audioContext.createGain();
-                            
-                            this.bgmGainNode.connect(this.audioContext.destination);
-                            this.sfxGainNode.connect(this.audioContext.destination);
-                            
-                            this.bgmGainNode.gain.value = this.bgmVolume;
-                            this.sfxGainNode.gain.value = this.sfxVolume;
-                            
-                            this.initialized = true;
-                            console.log('🎵 音频系统初始化成功');
-                        } catch (error) {
-                            console.error('❌ 音频系统初始化失败:', error);
+                        if (this.initialized) return true;
+                        if (this.initializing) return this.initializing;
+
+                        this.initializing = new Promise(async (resolve) => {
+                            try {
+                                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                                if (this.audioContext.state === 'suspended') {
+                                    await this.audioContext.resume();
+                                }
+                                this.bgmGainNode = this.audioContext.createGain();
+                                this.sfxGainNode = this.audioContext.createGain();
+                                this.bgmGainNode.connect(this.audioContext.destination);
+                                this.sfxGainNode.connect(this.audioContext.destination);
+                                this.initialized = true;
+                                console.log('🎵 音频系统初始化成功, 状态:', this.audioContext.state);
+                                resolve(true);
+                            } catch (error) {
+                                console.error('❌ 音频系统初始化失败:', error);
+                                this.initialized = false;
+                                resolve(false);
+                            } finally {
+                                this.initializing = null;
+                            }
+                        });
+                        return this.initializing;
+                    }
+
+                    async ensureContextIsRunning() {
+                        if (!this.initialized) await this.init();
+                        if (this.audioContext && this.audioContext.state === 'suspended') {
+                            try {
+                                await this.audioContext.resume();
+                            } catch(e) {
+                                console.error("恢复音频上下文失败", e);
+                            }
                         }
                     }
 
@@ -756,87 +773,86 @@
                             return null;
                         }
                     }
+                    
+                    _startBgm() {
+                        if (!this.bgmBuffer || !this.initialized) return;
+                        this.bgmSource = this.audioContext.createBufferSource();
+                        this.bgmSource.buffer = this.bgmBuffer;
+                        this.bgmSource.loop = true;
+                        this.bgmSource.connect(this.bgmGainNode);
+                        this.bgmSource.start(0);
+                        this.isBgmPlaying = true;
+                        bgmPlaying.value = true;
+                    }
 
                     async playBgm(src) {
-                        if (!this.initialized) await this.init();
+                        await this.ensureContextIsRunning();
                         if (!this.initialized) return;
-                        if (this.audioContext.state === 'suspended') {
-                            await this.audioContext.resume();
+
+                        this.bgmUrl = src;
+                        if (this.bgmSource) {
+                            this.bgmSource.stop();
                         }
 
-                        try {
-                            if (this.bgmSource) {
-                                this.bgmSource.stop();
-                                this.bgmSource = null;
+                        this.bgmBuffer = await this.loadAudioBuffer(src);
+                        if (!this.bgmBuffer) return;
+
+                        this._startBgm();
+                    }
+
+                    pauseBgm() {
+                        if (this.bgmSource && this.isBgmPlaying) {
+                            this.bgmSource.stop();
+                            this.bgmSource = null;
+                            this.isBgmPlaying = false;
+                            bgmPlaying.value = false;
+                        }
+                    }
+
+                    resumeBgm() {
+                        if (this.bgmUrl && !this.isBgmPlaying) {
+                            if(this.bgmBuffer) {
+                                 this._startBgm();
+                            } else {
+                                this.playBgm(this.bgmUrl);
                             }
-
-                            this.bgmBuffer = await this.loadAudioBuffer(src);
-                            if (!this.bgmBuffer) return;
-
-                            this.bgmSource = this.audioContext.createBufferSource();
-                            this.bgmSource.buffer = this.bgmBuffer;
-                            this.bgmSource.loop = true;
-                            this.bgmSource.connect(this.bgmGainNode);
-                            this.bgmSource.start();
-                            this.bgmPlaying = true;
-                        } catch (error) {
-                            console.error(`❌ BGM播放失败: ${src}`, error);
                         }
                     }
 
                     async playSfx(name) {
+                        await this.ensureContextIsRunning();
                         if (!this.initialized || !sfxEnabled.value) return;
-                         if (this.audioContext.state === 'suspended') {
-                            await this.audioContext.resume();
-                        }
 
                         try {
                             const src = sfxMap[name];
                             if (!src) return;
 
-                            if (!this.sfxBuffers.has(name)) {
-                                const buffer = await this.loadAudioBuffer(src);
+                            let buffer = this.sfxBuffers.get(name);
+                            if (!buffer) {
+                                buffer = await this.loadAudioBuffer(src);
                                 if (buffer) this.sfxBuffers.set(name, buffer);
                             }
 
-                            const buffer = this.sfxBuffers.get(name);
                             if (!buffer) return;
 
                             const source = this.audioContext.createBufferSource();
                             source.buffer = buffer;
                             source.connect(this.sfxGainNode);
-                            source.start();
+                            source.start(0);
                         } catch (error) {
-                            console.error(`❌ 音效播放失败: ${name}`, error);
+                            // silent fail
                         }
                     }
 
                     setBgmVolume(volume) {
-                        this.bgmVolume = volume;
                         if (this.bgmGainNode) {
                             this.bgmGainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
                         }
                     }
 
                     setSfxVolume(volume) {
-                        this.sfxVolume = volume;
                         if (this.sfxGainNode) {
                             this.sfxGainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
-                        }
-                    }
-
-                    toggleBgm(playing) {
-                        if (!this.initialized) return;
-                        if (playing) {
-                            if (this.audioContext.state === 'running') {
-                                this.audioContext.suspend();
-                                this.bgmPlaying = false;
-                            }
-                        } else {
-                             if (this.audioContext.state === 'suspended') {
-                                this.audioContext.resume();
-                                this.bgmPlaying = true;
-                            }
                         }
                     }
                 }
@@ -863,7 +879,7 @@
                     return flat;
                 });
 
-                const getTileSymbol = (type) => ['', '🐻', '🐰', '🐱', '🐶', '🐸', ' '][type] || '';
+                const getTileSymbol = (type) => ['', '🐻', '🐰', '🐱', '🐶', '🐸', '🐼'][type] || '';
                 const getTileImage = (type) => type < 1 || type > 6 ? '' : `${CURRENT_CDN}/tiles/tile-${type}.webp`;
                 const hasImage = (type) => type >= 1 && type <= 6 && !imageLoadErrors.value.has(type);
 
@@ -903,7 +919,6 @@
                 const playBgm = async (src) => {
                     if (!src) return;
                     await audioManager.playBgm(src);
-                    bgmPlaying.value = audioManager.bgmPlaying;
                 };
 
                 const switchBgm = async (bgm) => {
@@ -1122,9 +1137,8 @@
                 const handleOutsideClick = () => { selectedTile.value = null; };
 
                 const startGame = async () => {
-                    await playNamedSfxEnhanced('click');
-                    
                     await audioManager.init();
+                    await playNamedSfxEnhanced('click');
                     
                     gameStarted.value = true;
                     isPaused.value = false;
@@ -1149,8 +1163,11 @@
                 };
 
                 const toggleBgm = () => {
-                    audioManager.toggleBgm(bgmPlaying.value);
-                    bgmPlaying.value = !bgmPlaying.value;
+                    if (bgmPlaying.value) {
+                        audioManager.pauseBgm();
+                    } else {
+                        audioManager.resumeBgm();
+                    }
                 };
 
                 const toggleSfx = () => { sfxEnabled.value = !sfxEnabled.value; };
@@ -1175,12 +1192,12 @@
                     isPaused.value = !isPaused.value;
                     if (isPaused.value) {
                         if (gameTimer.value) { clearInterval(gameTimer.value); gameTimer.value = null; }
-                        audioManager.toggleBgm(true);
+                        audioManager.pauseBgm();
                         gameState.value = 'paused';
                         playNamedSfxEnhanced('click');
                     } else {
                         gameTimer.value = setInterval(() => { gameTime.value++; }, 1000);
-                        if(bgmPlaying.value) audioManager.toggleBgm(false);
+                        if(bgmPlaying.value) audioManager.resumeBgm();
                         gameState.value = 'playing';
                         playNamedSfxEnhanced('click');
                     }
@@ -1224,9 +1241,6 @@
                         }
                         await Promise.all(promises);
                     },
-                    async preloadAudio() {
-                        // Preloading is handled by AudioManager now
-                    },
                     getProgress() { return this.totalResources > 0 ? (this.loadedResources / this.totalResources) * 100 : 0; },
                     reset() { this.totalResources = 0; this.loadedResources = 0; }
                 };
@@ -1241,7 +1255,7 @@
                         const progressInterval = setInterval(() => {
                             loadingProgress.value = 30 + (resourceLoader.getProgress() * 60 / 100);
                         }, 100);
-                        await Promise.all([resourceLoader.preloadImages()]); // Removed audio preload
+                        await Promise.all([resourceLoader.preloadImages()]);
                         clearInterval(progressInterval);
                         loadingProgress.value = 90;
                         await new Promise(resolve => setTimeout(resolve, 300));
@@ -1272,8 +1286,6 @@
 
                 const handleFirstInteraction = async () => {
                     await audioManager.init();
-                    document.removeEventListener('touchstart', handleFirstInteraction);
-                    document.removeEventListener('click', handleFirstInteraction);
                 };
 
                 onMounted(async () => {
