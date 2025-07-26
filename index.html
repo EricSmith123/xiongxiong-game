@@ -12,7 +12,7 @@
             box-sizing: border-box;
         }
 
-        /* 3. 响应式适配重构 */
+        /* 响应式适配重构 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -77,7 +77,6 @@
             transform: scale(1.05);
         }
         
-        /* 2. 界面布局问题解决 */
         .top-controls {
             position: absolute;
             top: 0;
@@ -99,7 +98,7 @@
         }
         
         .bgm-selector {
-            position: static; /* 移除绝对定位 */
+            position: static;
             background: none;
             border-radius: 0;
             padding: 0;
@@ -163,8 +162,8 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 15px;
-            margin: -70px -20px 20px -20px; /* 负边距让它贴合顶部 */
-            padding-top: 75px; /* 为控制栏留空间 */
+            margin: -70px -20px 20px -20px;
+            padding-top: 75px;
             border-radius: 0;
             display: flex;
             justify-content: space-around;
