@@ -1202,6 +1202,11 @@
                     return flat;
                 });
 
+                const getTileSymbol = (type) => {
+                    const symbols = ['', '🐻', '🐰', '🐱', '🐶', '🐸', '🐼'];
+                    return symbols[type] || '';
+                };
+                
                 const getTileImage = (type) => {
                     if (type < 1 || type > 6) return '';
                     const path = (CURRENT_CDN === CDN_OPTIONS.local) 
