@@ -12,7 +12,7 @@
             box-sizing: border-box;
         }
 
-        /* 3. 响应式适配重构 */
+        /* 响应式适配重构 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -77,7 +77,6 @@
             transform: scale(1.05);
         }
         
-        /* 2. 界面布局问题解决 */
         .top-controls {
             position: absolute;
             top: 0;
@@ -99,7 +98,7 @@
         }
         
         .bgm-selector {
-            position: static; /* 移除绝对定位 */
+            position: static;
             background: none;
             border-radius: 0;
             padding: 0;
@@ -163,8 +162,8 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 15px;
-            margin: -70px -20px 20px -20px; /* 负边距让它贴合顶部 */
-            padding-top: 75px; /* 为控制栏留空间 */
+            margin: -70px -20px 20px -20px;
+            padding-top: 75px;
             border-radius: 0;
             display: flex;
             justify-content: space-around;
@@ -1202,8 +1201,14 @@
                     return flat;
                 });
 
-                const getTileSymbol = (type) => ['', '🐻', '🐰', '🐱', '🐶', '🐸', '🐼'][type] || '';
-                const getTileImage = (type) => type < 1 || type > 6 ? '' : `${CURRENT_CDN}/static/tiles/tile-${type}.webp`;
+                const getTileImage = (type) => {
+                    if (type < 1 || type > 6) return '';
+                    const path = (CURRENT_CDN === CDN_OPTIONS.local) 
+                        ? `./static/tiles/tile-${type}.webp`
+                        : `${CURRENT_CDN}/static/tiles/tile-${type}.webp`;
+                    return path;
+                };
+
                 const hasImage = (type) => type >= 1 && type <= 6 && !imageLoadErrors.value.has(type);
 
                 const handleImageError = (event) => {
@@ -1626,17 +1631,15 @@
                             if (!isPaused.value) gameTime.value++;
                         }, 1000);
                         
-                        // 延迟播放BGM，使用重试机制
-                        setTimeout(async () => {
-                            try {
-                                await retryWithFallback(async () => {
-                                    await playLastOrDefaultBgm();
-                                });
-                            } catch (error) {
-                                console.log('⚠️ BGM播放失败，游戏继续');
-                                showMessageTip('BGM加载中...', 'info');
-                            }
-                        }, 1000);
+                        // 移除setTimeout，直接播放
+                        try {
+                            await retryWithFallback(async () => {
+                                await playLastOrDefaultBgm();
+                            });
+                        } catch (error) {
+                            console.log('⚠️ BGM播放失败，游戏继续');
+                            showMessageTip('BGM加载中...', 'info');
+                        }
                         
                     } catch (error) {
                         console.error('❌ 游戏启动失败:', error);
@@ -1734,6 +1737,73 @@
                         this.loadedResources = 0;
                         this.failedResources = 0;
                     }
+                };
+                
+                const detectBestCDN = async () => {
+                    console.log('🔍 开始检测最佳CDN...');
+                    
+                    const testPromises = Object.entries(CDN_OPTIONS).map(async ([name, baseUrl]) => {
+                        try {
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 2000); // 减少超时时间
+                            
+                            const startTime = Date.now();
+                            // 检查一个肯定存在的小文件，比如一个音效
+                            const testUrl = (name === 'local') 
+                                ? `${baseUrl}/static/audio/sfx/click.mp3?t=${Date.now()}`
+                                : `${baseUrl}/static/audio/sfx/click.mp3?t=${Date.now()}`;
+
+                            const response = await fetch(testUrl, { 
+                                method: 'HEAD', 
+                                signal: controller.signal 
+                            });
+                            clearTimeout(timeoutId);
+                            
+                            const responseTime = Date.now() - startTime;
+                            
+                            if (response.ok) {
+                                console.log(`✅ CDN ${name} 响应时间: ${responseTime}ms`);
+                                return { name, baseUrl, responseTime };
+                            }
+                        } catch (error) {
+                            console.log(`❌ CDN ${name} 不可用:`, error.message);
+                        }
+                        return null;
+                    });
+                    
+                    const results = (await Promise.all(testPromises)).filter(Boolean);
+                    
+                    if (results.length > 0) {
+                        // 选择响应时间最短的CDN
+                        const fastest = results.sort((a, b) => a.responseTime - b.responseTime)[0];
+                        CURRENT_CDN = fastest.baseUrl;
+                        console.log(`🚀 选择最佳CDN: ${fastest.name} (${fastest.responseTime}ms)`);
+                    } else {
+                        console.log('⚠️ 所有CDN都不可用，使用本地资源');
+                        CURRENT_CDN = CDN_OPTIONS.local;
+                    }
+                };
+
+                const updateAudioSources = () => {
+                    // 如果使用本地，保持原路径
+                    if (CURRENT_CDN === CDN_OPTIONS.local) {
+                        bgmList.value.forEach(bgm => {
+                            bgm.src = `./static/audio/bgm/bgm_${bgm.id}.mp3`;
+                        });
+                        Object.keys(sfxMap).forEach(key => {
+                            sfxMap[key] = `./static/audio/sfx/${key}.mp3`;
+                        });
+                    } else {
+                        // 使用CDN路径
+                        bgmList.value.forEach(bgm => {
+                            bgm.src = `${CURRENT_CDN}/static/audio/bgm/bgm_${bgm.id}.mp3`;
+                        });
+                        Object.keys(sfxMap).forEach(key => {
+                            sfxMap[key] = `${CURRENT_CDN}/static/audio/sfx/${key}.mp3`;
+                        });
+                    }
+                    
+                    console.log('🔄 音频资源路径已更新');
                 };
 
                 const initializeGame = async () => {
