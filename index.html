@@ -443,7 +443,6 @@
 </head>
 <body>
     <div id="app">
-        <!-- 加载界面 -->
         <div v-if="showLoading" class="loading-overlay">
             <div class="loading-content">
                 <div class="loading-spinner"></div>
@@ -463,12 +462,10 @@
             </div>
         </div>
 
-        <!-- 设置按钮 -->
         <button v-if="!showLoading" @click="openSettings" class="settings-btn">
             ⚙️ 设置
         </button>
 
-        <!-- 设置面板 -->
         <div v-if="showSettings" class="settings-panel">
             <div class="settings-content">
                 <h3>🎮 游戏设置</h3>
@@ -490,9 +487,7 @@
         </div>
 
         <div class="game-container">
-             <!-- 顶部控制栏 -->
-            <div v-if="gameStarted" class="top-controls">
-                <!-- 左侧：BGM选择器 -->
+             <div v-if="gameStarted" class="top-controls">
                 <div class="bgm-selector">
                     <button 
                         v-for="bgm in bgmList" 
@@ -505,7 +500,6 @@
                     </button>
                 </div>
                 
-                <!-- 右侧：控制按钮组 -->
                 <div class="right-controls">
                     <button class="audio-btn" @click="toggleBgm" :title="bgmPlaying ? '暂停音乐' : '播放音乐'">
                         {{ bgmPlaying ? '🔊' : '🔇' }}
@@ -519,7 +513,6 @@
                 </div>
             </div>
 
-            <!-- 开始游戏覆盖层 -->
             <div v-if="!gameStarted" class="overlay">
                 <div class="modal">
                     <h2 style="margin-bottom: 20px; color: #333;">熊熊消消乐</h2>
@@ -527,7 +520,6 @@
                 </div>
             </div>
 
-            <!-- 游戏结束覆盖层 -->
             <div v-if="showGameOver" class="overlay">
                 <div class="modal">
                     <h3 style="margin-bottom: 15px; color: #e74c3c;">游戏结束</h3>
@@ -542,7 +534,6 @@
                 </div>
             </div>
 
-            <!-- 暂停界面 -->
             <div v-if="isPaused" class="overlay">
                 <div class="modal">
                     <h3 style="margin-bottom: 15px; color: #3498db;">⏸️ 游戏暂停</h3>
@@ -558,7 +549,6 @@
                 </div>
             </div>
 
-            <!-- 游戏内容 -->
             <div class="game-content">
                 <div class="score-info">
                     <div class="score-box">
@@ -593,7 +583,6 @@
                         </div>
                     </div>
 
-                    <!-- 消息提示 -->
                     <div
                         v-if="showMessage"
                         class="message-box"
@@ -602,12 +591,10 @@
                         {{ message }}
                     </div>
 
-                    <!-- 连锁效果 -->
                     <div v-if="showChainEffect" class="chain-effect">
                         <div class="chain-text">连锁 x{{ chainCount }}</div>
                     </div>
 
-                    <!-- 粒子效果容器 -->
                     <div class="particle-effect">
                         <div
                             v-for="p in particles"
@@ -732,7 +719,6 @@
                         
                         console.log('🎵 初始化音频系统...');
                         
-                        // 优先尝试Web Audio API（桌面端）
                         if (!this.isMobile && window.AudioContext) {
                             try {
                                 await this.initWebAudio();
@@ -743,7 +729,6 @@
                                 this.initFallback();
                             }
                         } else {
-                            // 移动端直接使用降级方案
                             console.log('📱 移动端检测，使用HTML5 Audio');
                             this.initFallback();
                         }
@@ -753,25 +738,19 @@
 
                     async initWebAudio() {
                         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                        
-                        // 创建增益节点
                         this.bgmGainNode = this.audioContext.createGain();
                         this.sfxGainNode = this.audioContext.createGain();
-                        
                         this.bgmGainNode.connect(this.audioContext.destination);
                         this.sfxGainNode.connect(this.audioContext.destination);
-                        
                         this.bgmGainNode.gain.value = this.bgmVolume;
                         this.sfxGainNode.gain.value = this.sfxVolume;
                         
-                        // 恢复音频上下文
                         if (this.audioContext.state === 'suspended') {
                             await this.audioContext.resume();
                         }
                     }
 
                     initFallback() {
-                        // HTML5 Audio降级方案
                         this.useWebAudio = false;
                         console.log('🔄 使用HTML5 Audio降级方案');
                     }
@@ -791,9 +770,7 @@
 
                     async playBgm(src) {
                         if (!this.initialized) await this.init();
-                        
                         console.log(`🎵 播放BGM: ${src}, 使用${this.useWebAudio ? 'Web Audio API' : 'HTML5 Audio'}`);
-                        
                         if (this.useWebAudio) {
                             await this.playBgmWebAudio(src);
                         } else {
@@ -803,29 +780,23 @@
 
                     async playBgmWebAudio(src) {
                         try {
-                            if (this.audioContext.state === 'suspended') {
-                                await this.audioContext.resume();
-                            }
-
+                            if (this.audioContext.state === 'suspended') await this.audioContext.resume();
                             if (this.bgmSource) {
                                 this.bgmSource.stop();
                                 this.bgmSource = null;
                             }
-
                             this.bgmBuffer = await this.loadAudioBuffer(src);
                             if (!this.bgmBuffer) {
                                 console.warn('⚠️ BGM缓冲区加载失败，尝试降级方案');
                                 await this.playBgmFallback(src);
                                 return;
                             }
-
                             this.bgmSource = this.audioContext.createBufferSource();
                             this.bgmSource.buffer = this.bgmBuffer;
                             this.bgmSource.loop = true;
                             this.bgmSource.connect(this.bgmGainNode);
                             this.bgmSource.start();
                             this.bgmPlaying = true;
-                            
                             console.log(`✅ BGM播放成功 (Web Audio): ${src}`);
                         } catch (error) {
                             console.error(`❌ Web Audio BGM播放失败: ${src}`, error);
@@ -839,16 +810,13 @@
                                 this.bgmAudio.pause();
                                 this.bgmAudio.currentTime = 0;
                             }
-
                             this.bgmAudio = new Audio(src);
                             this.bgmAudio.loop = true;
                             this.bgmAudio.volume = this.bgmVolume;
-                            
                             if (this.isMobile) {
                                 this.bgmAudio.preload = 'auto';
                                 this.bgmAudio.load();
                             }
-
                             const playPromise = this.bgmAudio.play();
                             if (playPromise) {
                                 await playPromise;
@@ -858,21 +826,14 @@
                         } catch (error) {
                             console.error(`❌ HTML5 BGM播放失败: ${src}`, error);
                             this.bgmPlaying = false;
+                            throw error; // 将错误抛出，由调用者处理
                         }
                     }
 
                     async playSfx(name) {
-                        if (!this.sfxEnabled) return;
-                        if (!this.initialized) await this.init();
-
+                        if (!this.sfxEnabled || !this.initialized) return;
                         const src = sfxMap[name];
-                        if (!src) {
-                            console.warn(`❌ 未找到音效: ${name}`);
-                            return;
-                        }
-
-                        console.log(`🔊 播放音效: ${name}, 使用${this.useWebAudio ? 'Web Audio API' : 'HTML5 Audio'}`);
-
+                        if (!src) return console.warn(`❌ 未找到音效: ${name}`);
                         if (this.useWebAudio) {
                             await this.playSfxWebAudio(name, src);
                         } else {
@@ -882,28 +843,20 @@
 
                     async playSfxWebAudio(name, src) {
                         try {
-                            if (this.audioContext.state === 'suspended') {
-                                await this.audioContext.resume();
-                            }
-
+                            if (this.audioContext.state === 'suspended') await this.audioContext.resume();
                             if (!this.sfxBuffers.has(name)) {
                                 const buffer = await this.loadAudioBuffer(src);
                                 if (buffer) this.sfxBuffers.set(name, buffer);
                             }
-
                             const buffer = this.sfxBuffers.get(name);
                             if (!buffer) {
-                                console.warn(`⚠️ 音效缓冲区加载失败: ${name}，尝试降级方案`);
                                 await this.playSfxFallback(name, src);
                                 return;
                             }
-
                             const source = this.audioContext.createBufferSource();
                             source.buffer = buffer;
                             source.connect(this.sfxGainNode);
                             source.start();
-                            
-                            console.log(`✅ 音效播放成功 (Web Audio): ${name}`);
                         } catch (error) {
                             console.error(`❌ Web Audio 音效播放失败: ${name}`, error);
                             await this.playSfxFallback(name, src);
@@ -912,31 +865,19 @@
 
                     async playSfxFallback(name, src) {
                         try {
-                            if (!this.sfxAudioPool.has(name)) {
-                                this.sfxAudioPool.set(name, []);
-                            }
-
+                            if (!this.sfxAudioPool.has(name)) this.sfxAudioPool.set(name, []);
                             const pool = this.sfxAudioPool.get(name);
                             let audio = pool.find(a => a.paused || a.ended);
-
                             if (!audio) {
                                 audio = new Audio(src);
                                 audio.volume = this.sfxVolume;
                                 pool.push(audio);
-                                
-                                if (pool.length > 3) {
-                                    pool.shift();
-                                }
+                                if (pool.length > 3) pool.shift();
                             }
-
                             audio.currentTime = 0;
                             audio.volume = this.sfxVolume;
-                            
                             const playPromise = audio.play();
-                            if (playPromise) {
-                                await playPromise;
-                                console.log(`✅ 音效播放成功 (HTML5): ${name}`);
-                            }
+                            if (playPromise) await playPromise;
                         } catch (error) {
                             console.error(`❌ HTML5 音效播放失败: ${name}`, error);
                         }
@@ -944,7 +885,6 @@
 
                     setBgmVolume(volume) {
                         this.bgmVolume = Math.max(0, Math.min(1, volume));
-                        
                         if (this.useWebAudio && this.bgmGainNode) {
                             this.bgmGainNode.gain.value = this.bgmVolume;
                         } else if (this.bgmAudio) {
@@ -954,26 +894,19 @@
 
                     setSfxVolume(volume) {
                         this.sfxVolume = Math.max(0, Math.min(1, volume));
-                        
                         if (this.useWebAudio && this.sfxGainNode) {
                             this.sfxGainNode.gain.value = this.sfxVolume;
                         }
-                        
-                        this.sfxAudioPool.forEach(pool => {
-                            pool.forEach(audio => {
-                                audio.volume = this.sfxVolume;
-                            });
-                        });
+                        this.sfxAudioPool.forEach(pool => pool.forEach(audio => audio.volume = this.sfxVolume));
                     }
 
                     pauseBgm() {
                         if (this.useWebAudio && this.bgmSource && this.bgmPlaying) {
                             this.bgmSource.stop();
-                            this.bgmPlaying = false;
                         } else if (this.bgmAudio && !this.bgmAudio.paused) {
                             this.bgmAudio.pause();
-                            this.bgmPlaying = false;
                         }
+                        this.bgmPlaying = false;
                     }
 
                     resumeBgm() {
@@ -985,15 +918,9 @@
                                 this.bgmSource.connect(this.bgmGainNode);
                                 this.bgmSource.start();
                                 this.bgmPlaying = true;
-                            } catch (error) {
-                                console.error('❌ BGM恢复失败', error);
-                            }
+                            } catch (error) { console.error('❌ BGM恢复失败', error); }
                         } else if (this.bgmAudio && this.bgmAudio.paused) {
-                            this.bgmAudio.play().then(() => {
-                                this.bgmPlaying = true;
-                            }).catch(error => {
-                                console.error('❌ BGM恢复失败', error);
-                            });
+                            this.bgmAudio.play().then(() => this.bgmPlaying = true).catch(e => console.error('❌ BGM恢复失败', e));
                         }
                     }
 
@@ -1001,126 +928,68 @@
                         this.sfxEnabled = !this.sfxEnabled;
                         return this.sfxEnabled;
                     }
-
-                    getStatus() {
-                        return {
-                            bgmPlaying: this.bgmPlaying,
-                            sfxEnabled: this.sfxEnabled,
-                            bgmVolume: this.bgmVolume,
-                            sfxVolume: this.sfxVolume,
-                            useWebAudio: this.useWebAudio,
-                            isMobile: this.isMobile
-                        };
-                    }
                 }
 
                 class OptimizedAudioManager extends HybridAudioManager {
                     constructor() {
                         super();
                         this.audioCache = new Map();
-                        this.loadingQueue = [];
-                        this.maxConcurrentLoads = 2; // 限制并发加载数
                         this.retryCount = new Map();
                         this.maxRetries = 3;
                     }
 
                     async preloadAudio(src, name) {
-                        if (this.audioCache.has(src)) {
-                            return this.audioCache.get(src);
-                        }
-
+                        if (this.audioCache.has(src)) return this.audioCache.get(src);
                         console.log(`📥 预加载音频: ${name}`);
-                        
                         try {
                             const audio = new Audio();
                             audio.preload = 'auto';
                             audio.crossOrigin = 'anonymous';
-                            
                             const loadPromise = new Promise((resolve, reject) => {
-                                const timeout = setTimeout(() => {
-                                    reject(new Error('加载超时'));
-                                }, 10000); // 10秒超时
-                                
-                                audio.oncanplaythrough = () => {
-                                    clearTimeout(timeout);
-                                    console.log(`✅ 音频预加载成功: ${name}`);
-                                    resolve(audio);
-                                };
-                                
-                                audio.onerror = () => {
-                                    clearTimeout(timeout);
-                                    reject(new Error('加载失败'));
-                                };
+                                const timeout = setTimeout(() => reject(new Error('加载超时')), 10000);
+                                audio.oncanplaythrough = () => { clearTimeout(timeout); resolve(audio); };
+                                audio.onerror = () => { clearTimeout(timeout); reject(new Error('加载失败')); };
                             });
-                            
                             audio.src = src;
                             audio.load();
-                            
                             const loadedAudio = await loadPromise;
                             this.audioCache.set(src, loadedAudio);
                             return loadedAudio;
-                            
                         } catch (error) {
                             console.error(`❌ 音频预加载失败: ${name}`, error);
-                            
-                            // 重试机制
                             const retries = this.retryCount.get(src) || 0;
                             if (retries < this.maxRetries) {
                                 this.retryCount.set(src, retries + 1);
                                 console.log(`🔄 重试加载音频: ${name} (${retries + 1}/${this.maxRetries})`);
-                                await new Promise(resolve => setTimeout(resolve, 1000 * (retries + 1))); // 递增延迟
+                                await new Promise(resolve => setTimeout(resolve, 1000 * (retries + 1)));
                                 return this.preloadAudio(src, name);
                             }
-                            
                             return null;
                         }
                     }
 
                     async playBgmFallback(src) {
                         try {
-                            // 停止当前BGM
                             if (this.bgmAudio) {
                                 this.bgmAudio.pause();
                                 this.bgmAudio.currentTime = 0;
                             }
-
-                            // 尝试使用缓存的音频
                             let audio = this.audioCache.get(src);
-                            
                             if (!audio) {
-                                console.log('🔄 BGM未缓存，创建新实例');
                                 audio = new Audio(src);
                                 audio.crossOrigin = 'anonymous';
                                 audio.preload = 'auto';
                             } else {
-                                // 克隆缓存的音频以避免冲突
                                 audio = audio.cloneNode();
                             }
-
                             this.bgmAudio = audio;
                             this.bgmAudio.loop = true;
                             this.bgmAudio.volume = this.bgmVolume;
-                            
-                            // 移动端特殊处理
-                            if (this.isMobile) {
-                                this.bgmAudio.load();
-                                // 添加加载进度监听
-                                this.bgmAudio.onprogress = () => {
-                                    if (this.bgmAudio.buffered.length > 0) {
-                                        const buffered = this.bgmAudio.buffered.end(0);
-                                        const duration = this.bgmAudio.duration || 1;
-                                        const progress = (buffered / duration) * 100;
-                                        console.log(`📊 BGM加载进度: ${progress.toFixed(1)}%`);
-                                    }
-                                };
-                            }
-
-                            // 添加错误处理
+                            if (this.isMobile) this.bgmAudio.load();
                             this.bgmAudio.onerror = (e) => {
                                 console.error('❌ BGM播放错误:', e);
                                 this.bgmPlaying = false;
                             };
-
                             const playPromise = this.bgmAudio.play();
                             if (playPromise) {
                                 await playPromise;
@@ -1130,52 +999,33 @@
                         } catch (error) {
                             console.error(`❌ BGM播放失败: ${src}`, error);
                             this.bgmPlaying = false;
-                            
-                            // 显示用户友好的错误信息
-                            showMessageTip('BGM加载中，请稍候...', 'info');
+                            throw error; // **FIX**: 抛出错误，而不是调用UI函数
                         }
                     }
 
                     async playSfxFallback(name, src) {
                         try {
-                            // 尝试使用缓存
                             let audio = this.audioCache.get(src);
-                            
                             if (!audio) {
-                                // 音效池管理
-                                if (!this.sfxAudioPool.has(name)) {
-                                    this.sfxAudioPool.set(name, []);
-                                }
-
+                                if (!this.sfxAudioPool.has(name)) this.sfxAudioPool.set(name, []);
                                 const pool = this.sfxAudioPool.get(name);
                                 audio = pool.find(a => a.paused || a.ended);
-
                                 if (!audio) {
                                     audio = new Audio(src);
                                     audio.volume = this.sfxVolume;
                                     audio.crossOrigin = 'anonymous';
                                     pool.push(audio);
-                                    
-                                    // 限制池大小
-                                    if (pool.length > 3) {
-                                        pool.shift();
-                                    }
+                                    if (pool.length > 3) pool.shift();
                                 }
                             } else {
                                 audio = audio.cloneNode();
                                 audio.volume = this.sfxVolume;
                             }
-
                             audio.currentTime = 0;
-                            
                             const playPromise = audio.play();
-                            if (playPromise) {
-                                await playPromise;
-                                console.log(`✅ 音效播放成功: ${name}`);
-                            }
+                            if (playPromise) await playPromise;
                         } catch (error) {
                             console.error(`❌ 音效播放失败: ${name}`, error);
-                            // 音效失败不影响游戏继续
                         }
                     }
                 }
@@ -1202,17 +1052,20 @@
                     return flat;
                 });
 
-                const getTileSymbol = (type) => {
-                    const symbols = ['', '🐻', '🐰', '🐱', '🐶', '🐸', '🐼'];
-                    return symbols[type] || '';
+                const showMessageTip = (msg, type = 'info', duration = 1200) => {
+                    message.value = msg;
+                    messageType.value = type;
+                    showMessage.value = true;
+                    setTimeout(() => { showMessage.value = false; }, duration);
                 };
+
+                const getTileSymbol = (type) => ['', '🐻', '🐰', '🐱', '🐶', '🐸', '🐼'][type] || '';
                 
                 const getTileImage = (type) => {
                     if (type < 1 || type > 6) return '';
-                    const path = (CURRENT_CDN === CDN_OPTIONS.local) 
+                    return (CURRENT_CDN === CDN_OPTIONS.local) 
                         ? `./static/tiles/tile-${type}.webp`
                         : `${CURRENT_CDN}/static/tiles/tile-${type}.webp`;
-                    return path;
                 };
 
                 const hasImage = (type) => type >= 1 && type <= 6 && !imageLoadErrors.value.has(type);
@@ -1231,13 +1084,6 @@
                     return classes;
                 };
 
-                const showMessageTip = (msg, type = 'info') => {
-                    message.value = msg;
-                    messageType.value = type;
-                    showMessage.value = true;
-                    setTimeout(() => { showMessage.value = false; }, 1200);
-                };
-
                 const playNamedSfxEnhanced = async (name) => {
                     if (!sfxEnabled.value) return;
                      try {
@@ -1247,40 +1093,41 @@
                     }
                 };
 
-                const playMatchSfx = (matchCount) => {
-                    playNamedSfxEnhanced('match');
-                };
-
-                const playChainSfx = (chainLevel) => {
-                    playNamedSfxEnhanced('match');
-                };
-
                 const playBgm = async (src) => {
                     if (!src) return;
                     try {
                         await audioManager.playBgm(src);
                         bgmPlaying.value = true;
                     } catch (error) {
-                        console.error(`❌ BGM播放失败: ${src}`, error);
                         bgmPlaying.value = false;
+                        console.error(`❌ BGM播放失败: ${src}`, error);
+                        throw error; // 抛出错误，让调用者处理UI提示
                     }
                 };
 
                 const switchBgm = async (bgm) => {
                     if (currentBgmId.value === bgm.id) return;
-                    
                     await playNamedSfxEnhanced('click');
                     currentBgmId.value = bgm.id;
                     localStorage.setItem('last_played_bgm_id', bgm.id.toString());
-                    await playBgm(bgm.src);
+                    try {
+                       await playBgm(bgm.src);
+                    } catch {
+                       showMessageTip('BGM 切换失败', 'error');
+                    }
                 };
                 
                 const playLastOrDefaultBgm = async () => {
                     const lastId = localStorage.getItem('last_played_bgm_id');
-                    let bgm = bgmList.value.find(b => b.id === parseInt(lastId, 10)) || bgmList.value[0];
-                    if (bgm) { 
-                        currentBgmId.value = bgm.id; 
-                        await playBgm(bgm.src); 
+                    const bgm = bgmList.value.find(b => b.id === parseInt(lastId, 10)) || bgmList.value[0];
+                    if (bgm && bgm.src) {
+                        try {
+                            await retryWithFallback(() => playBgm(bgm.src));
+                            currentBgmId.value = bgm.id;
+                        } catch (error) {
+                            console.log('⚠️ BGM播放失败，游戏继续');
+                            showMessageTip('BGM 加载失败', 'error');
+                        }
                     }
                 };
                 
@@ -1389,15 +1236,9 @@
                     const x = col * TILE_SIZE + TILE_SIZE / 2;
                     const y = row * TILE_SIZE + TILE_SIZE / 2;
                     for (let i = 0; i < 5; i++) {
-                        const p = {
-                            id: Math.random(),
-                            x: x + (Math.random() - 0.5) * 20,
-                            y: y + (Math.random() - 0.5) * 20,
-                        };
+                        const p = { id: Math.random(), x: x + (Math.random() - 0.5) * 20, y: y + (Math.random() - 0.5) * 20 };
                         particles.value.push(p);
-                        setTimeout(() => {
-                            particles.value = particles.value.filter(par => par.id !== p.id);
-                        }, 1000);
+                        setTimeout(() => { particles.value = particles.value.filter(par => par.id !== p.id); }, 1000);
                     }
                 };
 
@@ -1408,9 +1249,9 @@
                         showMessageTip(`连锁反应 x${chainCount.value}!`, 'chain');
                         showChainEffect.value = true;
                         setTimeout(() => { showChainEffect.value = false; }, 1000);
-                        playChainSfx(chainCount.value);
+                        playNamedSfxEnhanced('match'); // Or a specific chain sound
                     } else {
-                        playMatchSfx(matches.length);
+                        playNamedSfxEnhanced('match');
                     }
                     score.value += matches.length * 10 * chainCount.value;
                     
@@ -1441,7 +1282,7 @@
                         chainCount.value = 0;
                         if (!hasPossibleMove(gameBoard.value)) {
                             playNamedSfxEnhanced('nomove');
-                            showMessageTip('没有可移动的步数了!', 'error');
+                            showMessageTip('没有可移动的步数了!', 'error', 2000);
                             gameState.value = 'gameover';
                             setTimeout(() => { showGameOver.value = true; }, 2000);
                         }
@@ -1483,36 +1324,27 @@
                 const handleOutsideClick = () => { selectedTile.value = null; };
                 
                 const activateAudioOnMobile = async () => {
-                    if (audioManager.isMobile) {
+                    if (audioManager.isMobile && !audioManager.initialized) {
                         console.log('📱 移动端音频激活');
                         await audioManager.init();
-                        
-                        // 预播放静音音频以激活音频上下文
                         try {
-                            const silentAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+                            const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABgAZGF0YQAAAAA=');
                             silentAudio.volume = 0;
                             await silentAudio.play();
-                        } catch (e) {
-                            console.log('静音音频播放失败，这是正常的');
-                        }
+                        } catch (e) { /* silent fail is ok */ }
                     }
                 };
 
                 const toggleBgm = () => {
                     if (bgmPlaying.value) {
                         audioManager.pauseBgm();
-                        bgmPlaying.value = false;
                     } else {
                         audioManager.resumeBgm();
-                        // resumeBgm is async and might not update bgmPlaying immediately
-                        // We optimistically set it to true
-                        bgmPlaying.value = true; 
                     }
+                    bgmPlaying.value = audioManager.bgmPlaying;
                 };
 
-                const toggleSfx = () => {
-                    sfxEnabled.value = audioManager.toggleSfx();
-                };
+                const toggleSfx = () => { sfxEnabled.value = audioManager.toggleSfx(); };
 
                 const openSettings = () => {
                     if (gameStarted.value && !showGameOver.value && gameTimer.value) {
@@ -1537,14 +1369,13 @@
                         audioManager.pauseBgm();
                         bgmPlaying.value = false;
                         gameState.value = 'paused';
-                        playNamedSfxEnhanced('click');
                     } else {
                         gameTimer.value = setInterval(() => { gameTime.value++; }, 1000);
                         audioManager.resumeBgm();
                         bgmPlaying.value = true;
                         gameState.value = 'playing';
-                        playNamedSfxEnhanced('click');
                     }
+                    playNamedSfxEnhanced('click');
                 };
 
                 const updateBgmVolume = () => {
@@ -1572,10 +1403,7 @@
                 const debounce = (func, wait) => {
                     let timeout;
                     return function executedFunction(...args) {
-                        const later = () => {
-                            clearTimeout(timeout);
-                            func(...args);
-                        };
+                        const later = () => { clearTimeout(timeout); func(...args); };
                         clearTimeout(timeout);
                         timeout = setTimeout(later, wait);
                     };
@@ -1590,12 +1418,7 @@
                     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
                     if (connection) {
                         const speed = connection.effectiveType;
-                        const speedMap = {
-                            'slow-2g': '网络较慢',
-                            '2g': '网络一般', 
-                            '3g': '网络良好',
-                            '4g': '网络优秀'
-                        };
+                        const speedMap = { 'slow-2g': '网络较慢', '2g': '网络一般', '3g': '网络良好', '4g': '网络优秀' };
                         console.log(`📶 网络状态: ${speedMap[speed] || '未知'}`);
                     }
                 };
@@ -1615,10 +1438,7 @@
                 const startGame = async () => {
                     try {
                         showNetworkStatus();
-                        
-                        // 移动端音频激活
                         await activateAudioOnMobile();
-                        
                         await playNamedSfxEnhanced('click');
                         
                         gameStarted.value = true;
@@ -1633,23 +1453,14 @@
                         gameBoard.value = initializeBoard();
                         
                         if (gameTimer.value) clearInterval(gameTimer.value);
-                        gameTimer.value = setInterval(() => {
-                            if (!isPaused.value) gameTime.value++;
-                        }, 1000);
+                        gameTimer.value = setInterval(() => { if (!isPaused.value) gameTime.value++; }, 1000);
                         
-                        // 移除setTimeout，直接播放
-                        try {
-                            await retryWithFallback(async () => {
-                                await playLastOrDefaultBgm();
-                            });
-                        } catch (error) {
-                            console.log('⚠️ BGM播放失败，游戏继续');
-                            showMessageTip('BGM加载中...', 'info');
-                        }
+                        // **FIX**: 直接播放BGM，不再使用setTimeout延迟，以加快启动速度
+                        await playLastOrDefaultBgm();
                         
                     } catch (error) {
                         console.error('❌ 游戏启动失败:', error);
-                        showMessageTip('游戏启动可能较慢，请耐心等待', 'warning');
+                        showMessageTip('游戏启动失败，请刷新页面', 'error');
                     }
                 };
 
@@ -1659,128 +1470,69 @@
                 };
 
                 const resourceLoader = {
-                    totalResources: 0,
-                    loadedResources: 0,
-                    failedResources: 0,
+                    totalResources: 0, loadedResources: 0, failedResources: 0,
                     
                     async preloadImages() {
-                        console.log('🖼️ 开始预加载图片...');
                         const promises = [];
-                        
                         for (let i = 1; i <= tileTypes; i++) {
                             this.totalResources++;
-                            const p = new Promise((resolve) => {
+                            promises.push(new Promise((resolve) => {
                                 const img = new Image();
-                                img.onload = () => {
-                                    this.loadedResources++;
-                                    console.log(`✅ 图片加载成功: tile_${i}`);
-                                    resolve();
-                                };
+                                img.onload = () => { this.loadedResources++; resolve(); };
                                 img.onerror = () => {
                                     imageLoadErrors.value.add(i);
-                                    this.failedResources++;
-                                    this.loadedResources++;
-                                    console.log(`❌ 图片加载失败: tile_${i}`);
-                                    resolve();
+                                    this.failedResources++; this.loadedResources++; resolve();
                                 };
                                 img.src = getTileImage(i);
-                            });
-                            promises.push(p);
+                            }));
                         }
-                        
                         await Promise.all(promises);
-                        console.log(`🖼️ 图片预加载完成: ${this.loadedResources - this.failedResources}/${this.totalResources - this.failedResources} 成功`);
                     },
                     
                     async preloadAudio() {
-                        console.log('🎵 开始预加载音频...');
                         const criticalSfx = ['click', 'swap', 'match', 'fall'];
                         const promises = [];
-                        
-                        // 预加载关键音效
                         criticalSfx.forEach(name => {
                             this.totalResources++;
-                            const p = audioManager.preloadAudio(sfxMap[name], name).then(audio => {
-                                if (audio) {
-                                    this.loadedResources++;
-                                    console.log(`✅ 音效预加载成功: ${name}`);
-                                } else {
-                                    this.failedResources++;
-                                    this.loadedResources++;
-                                    console.log(`❌ 音效预加载失败: ${name}`);
-                                }
-                            });
-                            promises.push(p);
+                            promises.push(audioManager.preloadAudio(sfxMap[name], name).then(audio => {
+                                this.loadedResources++;
+                                if (!audio) this.failedResources++;
+                            }));
                         });
-                        
-                        // 预加载第一首BGM
                         if (bgmList.value.length > 0) {
                             this.totalResources++;
                             const firstBgm = bgmList.value[0];
-                            const p = audioManager.preloadAudio(firstBgm.src, firstBgm.name).then(audio => {
-                                if (audio) {
-                                    this.loadedResources++;
-                                    console.log(`✅ BGM预加载成功: ${firstBgm.name}`);
-                                } else {
-                                    this.failedResources++;
-                                    this.loadedResources++;
-                                    console.log(`❌ BGM预加载失败: ${firstBgm.name}`);
-                                }
-                            });
-                            promises.push(p);
+                            promises.push(audioManager.preloadAudio(firstBgm.src, firstBgm.name).then(audio => {
+                                this.loadedResources++;
+                                if (!audio) this.failedResources++;
+                            }));
                         }
-                        
                         await Promise.all(promises);
-                        console.log(`🎵 音频预加载完成: ${this.loadedResources - this.failedResources}/${this.totalResources - this.failedResources} 成功`);
                     },
                     
-                    getProgress() {
-                        return this.totalResources > 0 ? (this.loadedResources / this.totalResources) * 100 : 0;
-                    },
-                    
-                    reset() {
-                        this.totalResources = 0;
-                        this.loadedResources = 0;
-                        this.failedResources = 0;
-                    }
+                    getProgress() { return this.totalResources > 0 ? (this.loadedResources / this.totalResources) * 100 : 0; },
+                    reset() { this.totalResources = 0; this.loadedResources = 0; this.failedResources = 0; }
                 };
                 
                 const detectBestCDN = async () => {
                     console.log('🔍 开始检测最佳CDN...');
-                    
                     const testPromises = Object.entries(CDN_OPTIONS).map(async ([name, baseUrl]) => {
                         try {
                             const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 2000); // 减少超时时间
-                            
+                            const timeoutId = setTimeout(() => controller.abort(), 2000);
                             const startTime = Date.now();
-                            // 检查一个肯定存在的小文件，比如一个音效
-                            const testUrl = (name === 'local') 
-                                ? `${baseUrl}/static/audio/sfx/click.mp3?t=${Date.now()}`
-                                : `${baseUrl}/static/audio/sfx/click.mp3?t=${Date.now()}`;
-
-                            const response = await fetch(testUrl, { 
-                                method: 'HEAD', 
-                                signal: controller.signal 
-                            });
+                            // **FIX**: 确保测试的资源路径在所有CDN上都有效
+                            const testUrl = `${baseUrl}/static/audio/sfx/click.mp3?t=${Date.now()}`;
+                            const response = await fetch(testUrl, { method: 'HEAD', signal: controller.signal });
                             clearTimeout(timeoutId);
-                            
                             const responseTime = Date.now() - startTime;
-                            
-                            if (response.ok) {
-                                console.log(`✅ CDN ${name} 响应时间: ${responseTime}ms`);
-                                return { name, baseUrl, responseTime };
-                            }
-                        } catch (error) {
-                            console.log(`❌ CDN ${name} 不可用:`, error.message);
-                        }
+                            if (response.ok) return { name, baseUrl, responseTime };
+                        } catch (error) { /* Ignore failed CDNs */ }
                         return null;
                     });
                     
                     const results = (await Promise.all(testPromises)).filter(Boolean);
-                    
                     if (results.length > 0) {
-                        // 选择响应时间最短的CDN
                         const fastest = results.sort((a, b) => a.responseTime - b.responseTime)[0];
                         CURRENT_CDN = fastest.baseUrl;
                         console.log(`🚀 选择最佳CDN: ${fastest.name} (${fastest.responseTime}ms)`);
@@ -1791,24 +1543,12 @@
                 };
 
                 const updateAudioSources = () => {
-                    // 如果使用本地，保持原路径
-                    if (CURRENT_CDN === CDN_OPTIONS.local) {
-                        bgmList.value.forEach(bgm => {
-                            bgm.src = `./static/audio/bgm/bgm_${bgm.id}.mp3`;
-                        });
-                        Object.keys(sfxMap).forEach(key => {
-                            sfxMap[key] = `./static/audio/sfx/${key}.mp3`;
-                        });
-                    } else {
-                        // 使用CDN路径
-                        bgmList.value.forEach(bgm => {
-                            bgm.src = `${CURRENT_CDN}/static/audio/bgm/bgm_${bgm.id}.mp3`;
-                        });
-                        Object.keys(sfxMap).forEach(key => {
-                            sfxMap[key] = `${CURRENT_CDN}/static/audio/sfx/${key}.mp3`;
-                        });
-                    }
-                    
+                    bgmList.value.forEach(bgm => {
+                        bgm.src = `${CURRENT_CDN}/static/audio/bgm/bgm_${bgm.id}.mp3`;
+                    });
+                    Object.keys(sfxMap).forEach(key => {
+                        sfxMap[key] = `${CURRENT_CDN}/static/audio/sfx/${key}.mp3`;
+                    });
                     console.log('🔄 音频资源路径已更新');
                 };
 
@@ -1818,45 +1558,32 @@
                         resourceLoader.reset();
                         loadingProgress.value = 5;
                         
-                        // 1. 检测最佳CDN
-                        console.log('📡 检测网络状况...');
                         await detectBestCDN();
                         updateAudioSources();
                         loadingProgress.value = 20;
                         
-                        // 2. 初始化音频系统
-                        console.log('🎵 初始化音频系统...');
                         await audioManager.init();
                         loadingProgress.value = 30;
                         
-                        // 3. 并行加载资源
-                        console.log('📦 加载游戏资源...');
                         const progressInterval = setInterval(() => {
-                            const progress = resourceLoader.getProgress();
-                            loadingProgress.value = 30 + (progress * 60 / 100);
+                            loadingProgress.value = 30 + (resourceLoader.getProgress() * 60 / 100);
                         }, 100);
                         
-                        await Promise.all([
-                            resourceLoader.preloadImages(),
-                            resourceLoader.preloadAudio()
-                        ]);
+                        await Promise.all([resourceLoader.preloadImages(), resourceLoader.preloadAudio()]);
                         
                         clearInterval(progressInterval);
                         loadingProgress.value = 95;
                         
-                        // 4. 最终准备
                         await new Promise(resolve => setTimeout(resolve, 500));
                         loadingProgress.value = 100;
                         
                         console.log('✅ 游戏初始化完成！');
-                        setTimeout(() => {
-                            showLoading.value = false;
-                        }, 300);
+                        setTimeout(() => { showLoading.value = false; }, 300);
                         
                     } catch (error) {
                         console.error('❌ 游戏初始化失败:', error);
                         showLoading.value = false;
-                        showMessageTip('加载完成，游戏可能运行较慢', 'warning');
+                        showMessageTip('资源加载失败，请检查网络并刷新', 'error', 3000);
                     }
                 };
 
@@ -1866,13 +1593,9 @@
                     
                     document.addEventListener('visibilitychange', () => {
                         if (document.hidden) {
-                            if (bgmPlaying.value) {
-                                audioManager.pauseBgm();
-                            }
+                            if (bgmPlaying.value) audioManager.pauseBgm();
                         } else {
-                            if (gameStarted.value && !isPaused.value) {
-                                audioManager.resumeBgm();
-                            }
+                            if (gameStarted.value && !isPaused.value) audioManager.resumeBgm();
                         }
                     });
                 });
